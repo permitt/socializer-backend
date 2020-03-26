@@ -1,0 +1,20 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+django = "*"
+djangorestframework = "*"
+django-q = "*"
+redis = "*"
+selenium = "*"
+beautifulsoup4 = "*"
+djangorestframework-simplejwt = "*"
+pillow = "*"
+requests = "*"
+
+[requires]
+python_version = "3.7"
