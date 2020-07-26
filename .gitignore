@@ -6,6 +6,7 @@ __pycache__
 db.sqlite3
 media
 secrets.json
+chromedriver.exe
 
 # Backup files # 
 *.bak 

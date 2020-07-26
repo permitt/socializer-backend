@@ -31,8 +31,9 @@ def check_login(username: str, password: str) -> bool:
     driver.find_element_by_tag_name('form').submit()
     sleep(5)
     print(" ODJE SAM KRALJU ", driver.current_url)
+    rtn = False if driver.current_url == home else True
     driver.close()
-    return False if driver.current_url == home else True
+    return rtn
 
 def login_get_cookies(user_ig: UserInstagram) -> dict:
     driver = initialize_scraper()
