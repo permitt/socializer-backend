@@ -19,7 +19,8 @@ def initialize_scraper():
 
 def check_login(username: str, password: str) -> bool:
     driver = initialize_scraper()
-    driver.get("http://instagram.com/accounts/login")
+    home = "https://www.instagram.com/accounts/login/"
+    driver.get(home)
     sleep(3)
     user = driver.find_element_by_xpath("//*[@name='username']")
     user.send_keys(username)
@@ -28,9 +29,10 @@ def check_login(username: str, password: str) -> bool:
     sleep(2)
     # driver.find_element_by_xpath("//*[@type='submit']").click()
     driver.find_element_by_tag_name('form').submit()
-    sleep(100)
-
-    return False
+    sleep(5)
+    print(" ODJE SAM KRALJU ", driver.current_url)
+    driver.close()
+    return False if driver.current_url == home else True
 
 def login_get_cookies(user_ig: UserInstagram) -> dict:
     driver = initialize_scraper()

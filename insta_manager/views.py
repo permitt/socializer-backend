@@ -1,6 +1,8 @@
 from django.shortcuts import render
-from rest_framework import viewsets, permissions, serializers
+from rest_framework import viewsets, permissions, serializers, status
 from rest_framework import exceptions
+from rest_framework.response import Response
+
 from insta_manager.models import UserInstagram, Friend, Post
 from scraper.services import check_login
 from .serializers import UserInstagramSerializer, FriendSerializer, PostSerializer
@@ -13,14 +15,20 @@ class UserInstagramViewSet(viewsets.ModelViewSet):
     serializer_class = UserInstagramSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        username, password = request.data.values()
         # Provjeri postoji li vec vezan za ulogovan user, vrati gresku ako ima
-
+        found = UserInstagram.objects.filter(username=username).first()
+        if found:
+            return Response({'detail': 'That account has already been added!'}, status=status.HTTP_400_BAD_REQUEST)
         # Provjeri mozes li se ulogovat, ako ne vrati gresku odgovarajucu
-        username, password = serializer.data.values()
-        check_login(username, password)
 
-        #serializer .save(user=self.request.user)
+        if not check_login(username, password):
+            return Response({'detail': 'Can\'t login with this username and password'}, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid()
+        serializer.save(user=request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class FriendViewSet(viewsets.ModelViewSet):
     queryset = Friend.objects.all()
