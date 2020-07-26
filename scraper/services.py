@@ -4,12 +4,12 @@ from selenium import webdriver
 from django.conf import settings
 from time import sleep
 import json
-from insta_manager.models import UserInstagram, Follower, Post
+from insta_manager.models import UserInstagram, Friend, Post
 
 
 def initialize_scraper():
     options = webdriver.ChromeOptions()
-    options.add_argument('--headless')
+    #options.add_argument('--headless')
     options.add_argument('--disable-gpu')
     options.add_argument('--lang=en_US')
     options.add_argument(
@@ -17,6 +17,20 @@ def initialize_scraper():
     driver = webdriver.Chrome(executable_path=settings.CHROME_PATH, options=options)
     return driver
 
+def check_login(username: str, password: str) -> bool:
+    driver = initialize_scraper()
+    driver.get("http://instagram.com/accounts/login")
+    sleep(3)
+    user = driver.find_element_by_xpath("//*[@name='username']")
+    user.send_keys(username)
+    pw = driver.find_element_by_xpath("//*[@name='password']")
+    pw.send_keys(password)
+    sleep(2)
+    # driver.find_element_by_xpath("//*[@type='submit']").click()
+    driver.find_element_by_tag_name('form').submit()
+    sleep(100)
+
+    return False
 
 def login_get_cookies(user_ig: UserInstagram) -> dict:
     driver = initialize_scraper()
@@ -35,26 +49,26 @@ def login_get_cookies(user_ig: UserInstagram) -> dict:
     user_ig.save()
     return cookies
 
-def fetch_data(follower: Follower):
-    fetch_stories_url = get_story_url(follower.user_id)
-    fetch_posts_url = get_posts_url(follower.username)
+def fetch_data(friend: Friend):
+    fetch_stories_url = get_story_url(friend.user_id)
+    fetch_posts_url = get_posts_url(friend.username)
     session = requests.session()
     session.headers.update(get_active_headers())
 
-    cookies = get_active_cookies(follower.owner)
+    cookies = get_active_cookies(friend.owner)
     for cookie in cookies:
         c = {cookie['name']: cookie['value']}
         session.cookies.update(c)
 
     res = session.get(fetch_stories_url)
     stories = res.json()['data']['reels_media']
-    fetch_stories(follower, stories)
+    fetch_stories(friend, stories)
     res = session.get(fetch_posts_url)
     posts = res.json()['graphql']['user']['edge_owner_to_timeline_media']['edges']
-    fetch_posts(follower, posts)
+    fetch_posts(friend, posts)
 
 
-def fetch_stories(follower: Follower, stories: dict):
+def fetch_stories(friend: Friend, stories: dict):
     # Check whether there are new stories
     if len(stories) == 0:
         return
@@ -63,7 +77,7 @@ def fetch_stories(follower: Follower, stories: dict):
         for i in range(len(stories)):
 
             uploaded_at = datetime.fromtimestamp(int(stories[i]['taken_at_timestamp']))
-            if uploaded_at <= follower.lastStory:
+            if uploaded_at <= friend.lastStory:
                 continue
 
             if stories[i]['is_video']:
@@ -72,17 +86,17 @@ def fetch_stories(follower: Follower, stories: dict):
             else:
                 fetch_url = stories[i]['display_url']
                 extension = "_story.jpg"
-            new_post = Post(owner=follower, uploadedAt=uploaded_at, type=Post.PostType.STORY, url=fetch_url)
-            follower.lastStory = uploaded_at
-            folder_name = "/stories/" + follower.username + "/"
+            new_post = Post(owner=friend, uploadedAt=uploaded_at, type=Post.PostType.STORY, url=fetch_url)
+            friend.lastStory = uploaded_at
+            folder_name = "/stories/" + friend.username + "/"
             new_post.save(extension=extension, folder_name=folder_name)
-            follower.save()
+            friend.save()
 
     except Exception as err:
         print("[FETCH_STORIES] : ", err)
 
 
-def fetch_posts(follower: Follower, posts: dict):
+def fetch_posts(follower: Friend, posts: dict):
     try:
         last_post = posts[0]['node']
         uploaded_at = datetime.fromtimestamp(last_post['taken_at_timestamp'])

@@ -1,8 +1,9 @@
 from django.shortcuts import render
 from rest_framework import viewsets, permissions, serializers
 from rest_framework import exceptions
-from insta_manager.models import UserInstagram, Follower, Post
-from .serializers import UserInstagramSerializer, FollowerSerializer, PostSerializer
+from insta_manager.models import UserInstagram, Friend, Post
+from scraper.services import check_login
+from .serializers import UserInstagramSerializer, FriendSerializer, PostSerializer
 
 
 
@@ -16,12 +17,14 @@ class UserInstagramViewSet(viewsets.ModelViewSet):
         # Provjeri postoji li vec vezan za ulogovan user, vrati gresku ako ima
 
         # Provjeri mozes li se ulogovat, ako ne vrati gresku odgovarajucu
+        username, password = serializer.data.values()
+        check_login(username, password)
 
-        serializer.save(user=self.request.user)
+        #serializer .save(user=self.request.user)
 
-class FollowerViewSet(viewsets.ModelViewSet):
-    queryset = Follower.objects.all()
-    serializer_class = FollowerSerializer
+class FriendViewSet(viewsets.ModelViewSet):
+    queryset = Friend.objects.all()
+    serializer_class = FriendSerializer
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ['get', 'post', 'delete']
 
@@ -31,7 +34,7 @@ class FollowerViewSet(viewsets.ModelViewSet):
         except:
             raise exceptions.ValidationError('A user doesn\'t have an IG account.')
 
-        return Follower.objects.filter(owner=mainIG)
+        return Friend.objects.filter(owner=mainIG)
 
     # Odje pokreces taskove za scrapovanje, pravis schedule,
     def perform_create(self, serializer):

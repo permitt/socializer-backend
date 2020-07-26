@@ -1,18 +1,15 @@
 from pathlib import Path
-
 import requests
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models import signals
 from django.db import models
-
-
 # Create your models here.
 from django_q.tasks import schedule
 
 
 class UserInstagram(models.Model):
-    user = models.OneToOneField(User, related_name='ig', on_delete=models.CASCADE)
+    user = models.OneToOneField(User, related_name='instagram', on_delete=models.CASCADE)
     username = models.CharField(max_length=50, blank=False, primary_key=True)
     password = models.CharField(max_length=50)
     cookies = models.TextField()
@@ -22,14 +19,14 @@ class UserInstagram(models.Model):
         return self.username
 
 
-class Follower(models.Model):
+class Friend(models.Model):
     username = models.CharField(max_length=50, primary_key=True)
     user_id = models.IntegerField(blank=True)
     firstName = models.CharField(max_length=30, blank=True)
     lastName = models.CharField(max_length=30, blank=True)
     picture = models.CharField(max_length=100, blank=True)
 
-    owner = models.ForeignKey(UserInstagram, related_name='followers', on_delete=models.CASCADE)
+    followedBy = models.ForeignKey(UserInstagram, related_name='following', on_delete=models.CASCADE)
     activeStory = models.BooleanField(default=True)
     activePosts = models.BooleanField(default=True)
     lastPost = models.DateTimeField(auto_now_add=True)
@@ -39,7 +36,7 @@ class Follower(models.Model):
         return self.username
 
 
-def follower_post_save(sender, instance, created, *args, **kwargs):
+def follower_post_save(sender : Friend, instance, created, *args, **kwargs):
     """
     Function that will schedule fetching data about Follower every hour
     :param sender: Follower class
@@ -55,7 +52,7 @@ def follower_post_save(sender, instance, created, *args, **kwargs):
                  )
 
 
-signals.post_save.connect(receiver=follower_post_save, sender=Follower)
+signals.post_save.connect(receiver=follower_post_save, sender=Friend)
 
 
 class Post(models.Model):
@@ -63,7 +60,7 @@ class Post(models.Model):
         STORY = 'STORY', ('Story')
         POST = "POST", ('Post')
 
-    owner = models.ForeignKey(Follower, related_name='posts', on_delete=models.CASCADE)
+    owner = models.ForeignKey(Friend, related_name='posts', on_delete=models.CASCADE)
     uploadedAt = models.DateTimeField()
     url = models.URLField()
     image = models.ImageField(upload_to='images')

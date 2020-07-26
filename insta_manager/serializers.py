@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import UserInstagram, Follower, Post
+from .models import UserInstagram, Friend, Post
 
 
 class UserInstagramSerializer(serializers.ModelSerializer):
@@ -8,9 +8,9 @@ class UserInstagramSerializer(serializers.ModelSerializer):
         exclude = ['user', 'cookies']
 
 
-class FollowerSerializer(serializers.ModelSerializer):
+class FriendSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Follower
+        model = Friend
         fields = ['username','firstName','lastName','picture']
 
 
