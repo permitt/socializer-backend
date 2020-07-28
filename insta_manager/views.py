@@ -1,10 +1,12 @@
 from django.shortcuts import render
+from django_q.models import Schedule
+from django_q.tasks import schedule
 from rest_framework import viewsets, permissions, serializers, status
 from rest_framework import exceptions
 from rest_framework.response import Response
 
 from insta_manager.models import UserInstagram, Friend, Post
-from scraper.services import check_login
+from scraper.services import check_login, valid_friend, fetch_data
 from .serializers import UserInstagramSerializer, FriendSerializer, PostSerializer
 
 
@@ -45,15 +47,32 @@ class FriendViewSet(viewsets.ModelViewSet):
         return Friend.objects.filter(owner=mainIG)
 
     # Odje pokreces taskove za scrapovanje, pravis schedule,
-    def perform_create(self, serializer):
-        # Prvo provjeri ima li korisnik unesen IG
-        try:
-            mainIG = self.request.user.ig
-        except:
-            raise exceptions.ValidationError('A user doesn\'t have an IG account.')
-        # Drugo odradi provjeru postoji li taj username i da li ga prati korisnik
+    def create(self, request, *args, **kwargs):
 
-        serializer.save(owner=mainIG)
+        username = request.data['username']
+        # Prvo provjeri ima li korisnik unesen IG
+        if request.user.instagram is None:
+            return Response({'detail':'You must first add your account!'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if Friend.objects.filter(username=username, followedBy=request.user.instagram).first():
+            return Response({'detail': 'You are already stalking this dude'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Drugo odradi provjeru postoji li taj username i da li ga prati korisnik
+        valid, data = valid_friend(request.user.instagram, username)
+        if not valid:
+            return Response({'detail': 'Cannot follow that friend'}, status=status.HTTP_400_BAD_REQUEST)
+
+        emailNotification = request.data['emailNotif']
+        del request.data['emailNotif']
+
+        data = { **request.data, **data}
+        data['followedBy'] = request.user.instagram
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid()
+        serializer.save()
+
+        schedule('scraper.services.fetch_data', serializer.instance.username, request.user.username, emailNotification, schedule_type=Schedule.HOURLY)
+        return Response(request.data, status=status.HTTP_200_OK)
 
 
 class PostViewSet(viewsets.ModelViewSet):

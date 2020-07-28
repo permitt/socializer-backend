@@ -1,10 +1,12 @@
 from datetime import datetime
 import requests
+from django.utils import timezone
 from selenium import webdriver
 from django.conf import settings
 from time import sleep
 import json
 from insta_manager.models import UserInstagram, Friend, Post
+from insta_manager.services import send_email
 
 
 def initialize_scraper():
@@ -29,7 +31,7 @@ def check_login(username: str, password: str) -> bool:
     sleep(2)
     # driver.find_element_by_xpath("//*[@type='submit']").click()
     driver.find_element_by_tag_name('form').submit()
-    sleep(5)
+    sleep(7)
     print(" ODJE SAM KRALJU ", driver.current_url)
     rtn = False if driver.current_url == home else True
     driver.close()
@@ -37,7 +39,7 @@ def check_login(username: str, password: str) -> bool:
 
 def login_get_cookies(user_ig: UserInstagram) -> dict:
     driver = initialize_scraper()
-    driver.get("http://instagram.com/accounts/login")
+    driver.get("https://www.instagram.com/accounts/login/")
     sleep(3)
     user = driver.find_element_by_xpath("//*[@name='username']")
     user.send_keys(user_ig.username)
@@ -48,17 +50,25 @@ def login_get_cookies(user_ig: UserInstagram) -> dict:
     driver.find_element_by_tag_name('form').submit()
     sleep(10)
     cookies = driver.get_cookies()
+
+
+
+
     user_ig.lastActive = datetime.now()
+    user_ig.cookies = json.dumps(cookies)
     user_ig.save()
     return cookies
 
-def fetch_data(friend: Friend):
+def fetch_data(username: str, *args, **kwargs):
+
+    friend = Friend.objects.get(username=username)
+    numOfPosts = len(Post.objects.filter(owner=friend))
     fetch_stories_url = get_story_url(friend.user_id)
     fetch_posts_url = get_posts_url(friend.username)
     session = requests.session()
     session.headers.update(get_active_headers())
 
-    cookies = get_active_cookies(friend.owner)
+    cookies = get_active_cookies(friend.followedBy)
     for cookie in cookies:
         c = {cookie['name']: cookie['value']}
         session.cookies.update(c)
@@ -70,28 +80,37 @@ def fetch_data(friend: Friend):
     posts = res.json()['graphql']['user']['edge_owner_to_timeline_media']['edges']
     fetch_posts(friend, posts)
 
+    numOfPostsNew = len(Post.objects.filter(owner=friend))
+    user = args[0]
+    emailNotif = args[1]
+    print("STARI POSTOVI ", numOfPosts, ' aa novi   ', numOfPostsNew)
+    if numOfPostsNew > numOfPosts and emailNotif:
+        print("IDE GAS")
+        send_email(user, friend.username)
+
 
 def fetch_stories(friend: Friend, stories: dict):
     # Check whether there are new stories
     if len(stories) == 0:
+        print("NULA STORIJA")
         return
     # Iterate through all stories
-    try:
-        for i in range(len(stories)):
 
-            uploaded_at = datetime.fromtimestamp(int(stories[i]['taken_at_timestamp']))
-            if uploaded_at <= friend.lastStory:
+    try:
+        for i in range(len(stories[0]['items'])):
+            uploaded_at = timezone.make_aware(datetime.fromtimestamp(stories[0]['items'][i]['taken_at_timestamp']))
+            if uploaded_at < friend.lastStory:
                 continue
 
-            if stories[i]['is_video']:
-                fetch_url = stories[i]['video_resources'][0]['src']
+            if stories[0]['items'][i]['is_video']:
+                fetch_url = stories[0]['items'][i]['video_resources'][0]['src']
                 extension = "_story.mp4"
             else:
-                fetch_url = stories[i]['display_url']
+                fetch_url = stories[0]['items'][i]['display_url']
                 extension = "_story.jpg"
             new_post = Post(owner=friend, uploadedAt=uploaded_at, type=Post.PostType.STORY, url=fetch_url)
             friend.lastStory = uploaded_at
-            folder_name = "/stories/" + friend.username + "/"
+            folder_name = "stories/" + friend.username + "/"
             new_post.save(extension=extension, folder_name=folder_name)
             friend.save()
 
@@ -102,15 +121,15 @@ def fetch_stories(friend: Friend, stories: dict):
 def fetch_posts(follower: Friend, posts: dict):
     try:
         last_post = posts[0]['node']
-        uploaded_at = datetime.fromtimestamp(last_post['taken_at_timestamp'])
+        uploaded_at = timezone.make_aware(datetime.fromtimestamp(last_post['taken_at_timestamp']))
 
-        if uploaded_at <= follower.lastPost:
+        if uploaded_at < follower.lastPost:
             return
 
         follower.lastPost = uploaded_at
         fetch_url = last_post['display_url']
         extension = ".jpg"
-        folder_name = "/posts/" + follower.username + "/"
+        folder_name = "posts/" + follower.username + "/"
         new_post = Post(owner=follower, uploadedAt=uploaded_at, type=Post.PostType.POST, url=fetch_url)
         new_post.save(extension=extension, folder_name=folder_name)
         follower.save()
@@ -119,9 +138,9 @@ def fetch_posts(follower: Friend, posts: dict):
 
 
 # Helper functions
-def valid_follower(main_user: UserInstagram, follower_user: str) -> bool:
+def valid_friend(main_user: UserInstagram, friend_user: str) -> bool:
     cookies = login_get_cookies(main_user)
-    fetch_posts_url = get_posts_url(follower_user)
+    fetch_posts_url = get_posts_url(friend_user)
     session = requests.session()
     session.headers.update(get_active_headers())
 
@@ -131,11 +150,17 @@ def valid_follower(main_user: UserInstagram, follower_user: str) -> bool:
 
     res = session.get(fetch_posts_url)
     if res.status_code >= 400:
-        return False
+        return False, None
     profile = res.json()['graphql']['user']
+    print("OVO JE PROFIL ", profile)
     if profile['followed_by_viewer'] or not profile['is_private']:
-        return True
-    return False
+        ret = {
+            'user_id': int(profile['id']),
+            'fullName': profile['full_name'],
+            'picture': profile['profile_pic_url'],
+        }
+        return (True, ret)
+    return (False, [])
 
 def get_posts_url(username):
     return f'https://www.instagram.com/{username}?__a=1'
@@ -154,9 +179,9 @@ def get_active_headers():
 
 
 def get_active_cookies(user: UserInstagram) -> dict:
-    current_datetime = datetime.now()
+    current_datetime = timezone.now()
     # Assume that cookies last for 24 hours. Check it below via UserInstagram.lastActive and update if needed.
     if (current_datetime - user.lastActive).days < 1:
-        return json.load(user.cookies)
+        return json.loads(user.cookies)
 
     return login_get_cookies(user)

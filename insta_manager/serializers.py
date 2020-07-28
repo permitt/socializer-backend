@@ -11,7 +11,7 @@ class UserInstagramSerializer(serializers.ModelSerializer):
 class FriendSerializer(serializers.ModelSerializer):
     class Meta:
         model = Friend
-        fields = ['username','firstName','lastName','picture']
+        fields = '__all__'
 
 
 class PostSerializer(serializers.ModelSerializer):

@@ -22,13 +22,12 @@ class UserInstagram(models.Model):
 class Friend(models.Model):
     username = models.CharField(max_length=50, primary_key=True)
     user_id = models.IntegerField(blank=True)
-    firstName = models.CharField(max_length=30, blank=True)
-    lastName = models.CharField(max_length=30, blank=True)
-    picture = models.CharField(max_length=100, blank=True)
+    fullName = models.CharField(max_length=100, blank=True)
+    picture = models.CharField(max_length=300, blank=True)
 
     followedBy = models.ForeignKey(UserInstagram, related_name='following', on_delete=models.CASCADE)
-    activeStory = models.BooleanField(default=True)
-    activePosts = models.BooleanField(default=True)
+    activeStory = models.BooleanField(default=False)
+    activePosts = models.BooleanField(default=False)
     lastPost = models.DateTimeField(auto_now_add=True)
     lastStory = models.DateTimeField(auto_now_add=True)
 
@@ -36,26 +35,30 @@ class Friend(models.Model):
         return self.username
 
 
-def follower_post_save(sender : Friend, instance, created, *args, **kwargs):
-    """
-    Function that will schedule fetching data about Follower every hour
-    :param sender: Follower class
-    :param instance: Follower instance being saved
-    :param created: Boolean, true if creating new instance
-    :return:
-    """
-    if created:
-        schedule('services.fetch_data',
-                 instance,
-                 hook='hooks.print_result',
-                 schedule_type='H',
-                 )
-
-
-signals.post_save.connect(receiver=follower_post_save, sender=Friend)
+# def follower_post_save(sender : Friend, instance, created, *args, **kwargs):
+#     """
+#     Function that will schedule fetching data about Follower every hour
+#     :param sender: Follower class
+#     :param instance: Follower instance being saved
+#     :param created: Boolean, true if creating new instance
+#     :return:
+#     """
+#     if created:
+#         schedule('services.fetch_data',
+#                  instance,
+#                  hook='hooks.print_result',
+#                  schedule_type='H',
+#                  )
+#
+#
+# signals.post_save.connect(receiver=follower_post_save, sender=Friend)
 
 
 class Post(models.Model):
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['owner','uploadedAt'], name='unique post')]
+
     class PostType(models.TextChoices):
         STORY = 'STORY', ('Story')
         POST = "POST", ('Post')
@@ -72,12 +75,14 @@ class Post(models.Model):
         extension = kwargs['extension']
         folder_name = kwargs['folder_name']
         img_data = requests.get(self.url).content
-        Path(settings.STATIC_URL + folder_name).mkdir(parents=True, exist_ok=True)
-        img_name = settings.STATIC_URL + folder_name + str(self.uploadedAt) + extension
+        Path('.' + settings.STATIC_URL + folder_name).mkdir(parents=True, exist_ok=True)
+        img_name = '.' + settings.STATIC_URL + folder_name + str(self.uploadedAt).replace(':','-') + extension
         with open(img_name, "wb") as f:
             f.write(img_data)
 
+        del kwargs['extension']
+        del kwargs['folder_name']
         super(Post, self).save(*args, **kwargs)
 
     def __str__(self):
-        return f'{self.owner} : {self.url}'
+        return f'{self.owner} : {self.uploadedAt} | {self.type}'
