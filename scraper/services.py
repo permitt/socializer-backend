@@ -99,7 +99,7 @@ def fetch_stories(friend: Friend, stories: dict):
     try:
         for i in range(len(stories[0]['items'])):
             uploaded_at = timezone.make_aware(datetime.fromtimestamp(stories[0]['items'][i]['taken_at_timestamp']))
-            if uploaded_at < friend.lastStory:
+            if uploaded_at <= friend.lastStory:
                 continue
 
             if stories[0]['items'][i]['is_video']:
@@ -123,7 +123,7 @@ def fetch_posts(follower: Friend, posts: dict):
         last_post = posts[0]['node']
         uploaded_at = timezone.make_aware(datetime.fromtimestamp(last_post['taken_at_timestamp']))
 
-        if uploaded_at < follower.lastPost:
+        if uploaded_at <= follower.lastPost:
             return
 
         follower.lastPost = uploaded_at
