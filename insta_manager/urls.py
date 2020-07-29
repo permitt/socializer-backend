@@ -5,6 +5,8 @@ from rest_framework.routers import DefaultRouter
 router = DefaultRouter()
 router.register(r'instagram', views.UserInstagramViewSet)
 router.register(r'friend', views.FriendViewSet)
-router.register(r'^post/(?P<username>.+)/$', views.PostViewSet)
+router.register(r'^post', views.PostViewSet)
 
-urlpatterns = router.urls
+urlpatterns = [
+            path('post/user/<str:username>', views.getUserPosts),
+            *router.urls]

@@ -60,8 +60,11 @@ def login_get_cookies(user_ig: UserInstagram) -> dict:
     return cookies
 
 def fetch_data(username: str, *args, **kwargs):
+    try:
+        friend = Friend.objects.get(username=username)
+    except:
+        return
 
-    friend = Friend.objects.get(username=username)
     numOfPosts = len(Post.objects.filter(owner=friend))
     fetch_stories_url = get_story_url(friend.user_id)
     fetch_posts_url = get_posts_url(friend.username)
@@ -100,9 +103,11 @@ def fetch_stories(friend: Friend, stories: dict):
         for i in range(len(stories[0]['items'])):
             uploaded_at = timezone.make_aware(datetime.fromtimestamp(stories[0]['items'][i]['taken_at_timestamp']))
             if uploaded_at <= friend.lastStory:
-                continue
+                #continue
+                print("LJOLJ")
 
             if stories[0]['items'][i]['is_video']:
+                continue
                 fetch_url = stories[0]['items'][i]['video_resources'][0]['src']
                 extension = "_story.mp4"
             else:
@@ -124,7 +129,8 @@ def fetch_posts(follower: Friend, posts: dict):
         uploaded_at = timezone.make_aware(datetime.fromtimestamp(last_post['taken_at_timestamp']))
 
         if uploaded_at <= follower.lastPost:
-            return
+            print("LJOLJ")
+#            return
 
         follower.lastPost = uploaded_at
         fetch_url = last_post['display_url']
@@ -139,7 +145,14 @@ def fetch_posts(follower: Friend, posts: dict):
 
 # Helper functions
 def valid_friend(main_user: UserInstagram, friend_user: str) -> bool:
-    cookies = login_get_cookies(main_user)
+    session = requests.session()
+    session.headers.update(get_active_headers())
+
+    cookies = get_active_cookies(main_user)
+    for cookie in cookies:
+        c = {cookie['name']: cookie['value']}
+        session.cookies.update(c)
+
     fetch_posts_url = get_posts_url(friend_user)
     session = requests.session()
     session.headers.update(get_active_headers())
@@ -149,10 +162,10 @@ def valid_friend(main_user: UserInstagram, friend_user: str) -> bool:
         session.cookies.update(c)
 
     res = session.get(fetch_posts_url)
-    if res.status_code >= 400:
+    if res.status_code >= 400 or len(res.json().values()) == 0:
         return False, None
+
     profile = res.json()['graphql']['user']
-    print("OVO JE PROFIL ", profile)
     if profile['followed_by_viewer'] or not profile['is_private']:
         ret = {
             'user_id': int(profile['id']),

@@ -3,6 +3,7 @@ from django_q.models import Schedule
 from django_q.tasks import schedule
 from rest_framework import viewsets, permissions, serializers, status
 from rest_framework import exceptions
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from insta_manager.models import UserInstagram, Friend, Post
@@ -40,11 +41,11 @@ class FriendViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         try:
-            mainIG = self.request.user.ig
+            mainIG = self.request.user.instagram
         except:
             raise exceptions.ValidationError('A user doesn\'t have an IG account.')
 
-        return Friend.objects.filter(owner=mainIG)
+        return Friend.objects.filter(followedBy=mainIG)
 
     # Odje pokreces taskove za scrapovanje, pravis schedule,
     def create(self, request, *args, **kwargs):
@@ -71,8 +72,8 @@ class FriendViewSet(viewsets.ModelViewSet):
         serializer.is_valid()
         serializer.save()
 
-        schedule('scraper.services.fetch_data', serializer.instance.username, request.user.username, emailNotification, schedule_type=Schedule.HOURLY)
-        return Response(request.data, status=status.HTTP_200_OK)
+        schedule('scraper.services.fetch_data', serializer.instance.username, request.user.username, emailNotification, schedule_type=Schedule.DAILY)
+        return Response(request.data, status=status.HTTP_201_CREATED)
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -91,3 +92,14 @@ class PostViewSet(viewsets.ModelViewSet):
     #
     def perform_create(self, serializer):
         pass
+@api_view(['GET'])
+def getUserPosts(request, *args, **kwargs):
+    user = request.user.instagram
+    friend = Friend.objects.filter(username=kwargs['username'], followedBy=user).first()
+    if not friend:
+        return Response({'detail': 'You Can\'t access this page'}, status=status.HTTP_400_BAD_REQUEST, content_type='application/json')
+
+    posts = Post.objects.filter(owner=friend)
+    response = PostSerializer(many=True, data=posts)
+    response.is_valid()
+    return Response(response.data, status=status.HTTP_200_OK, content_type='application/json')
