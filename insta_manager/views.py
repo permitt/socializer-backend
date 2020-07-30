@@ -49,7 +49,6 @@ class FriendViewSet(viewsets.ModelViewSet):
 
     # Odje pokreces taskove za scrapovanje, pravis schedule,
     def create(self, request, *args, **kwargs):
-
         username = request.data['username']
         # Prvo provjeri ima li korisnik unesen IG
         if request.user.instagram is None:
@@ -83,15 +82,17 @@ class PostViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'delete']
 
     def get_queryset(self):
+        if self.request.method == 'DELETE':
+            return Post.objects.all()
+
         try:
             mainIG = self.request.user.ig
         except:
             raise serializers.ValidationError('A user doesn\'t have an IG account.')
         owner = self.kwargs['username']
         return Post.objects.filter(owner__username=owner)
-    #
-    def perform_create(self, serializer):
-        pass
+
+
 @api_view(['GET'])
 def getUserPosts(request, *args, **kwargs):
     user = request.user.instagram

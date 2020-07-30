@@ -11,7 +11,7 @@ from insta_manager.services import send_email
 
 def initialize_scraper():
     options = webdriver.ChromeOptions()
-    #options.add_argument('--headless')
+    options.add_argument('--headless')
     options.add_argument('--disable-gpu')
     options.add_argument('--lang=en_US')
     options.add_argument(
@@ -32,7 +32,6 @@ def check_login(username: str, password: str) -> bool:
     # driver.find_element_by_xpath("//*[@type='submit']").click()
     driver.find_element_by_tag_name('form').submit()
     sleep(7)
-    print(" ODJE SAM KRALJU ", driver.current_url)
     rtn = False if driver.current_url == home else True
     driver.close()
     return rtn
@@ -50,9 +49,6 @@ def login_get_cookies(user_ig: UserInstagram) -> dict:
     driver.find_element_by_tag_name('form').submit()
     sleep(10)
     cookies = driver.get_cookies()
-
-
-
 
     user_ig.lastActive = datetime.now()
     user_ig.cookies = json.dumps(cookies)
@@ -193,6 +189,9 @@ def get_active_headers():
 
 def get_active_cookies(user: UserInstagram) -> dict:
     current_datetime = timezone.now()
+    if user.cookies == '':
+        return login_get_cookies(user)
+
     # Assume that cookies last for 24 hours. Check it below via UserInstagram.lastActive and update if needed.
     if (current_datetime - user.lastActive).days < 1:
         return json.loads(user.cookies)
