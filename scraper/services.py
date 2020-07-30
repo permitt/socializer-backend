@@ -82,25 +82,21 @@ def fetch_data(username: str, *args, **kwargs):
     numOfPostsNew = len(Post.objects.filter(owner=friend))
     user = args[0]
     emailNotif = args[1]
-    print("STARI POSTOVI ", numOfPosts, ' aa novi   ', numOfPostsNew)
     if numOfPostsNew > numOfPosts and emailNotif:
-        print("IDE GAS")
         send_email(user, friend.username)
 
 
 def fetch_stories(friend: Friend, stories: dict):
     # Check whether there are new stories
     if len(stories) == 0:
-        print("NULA STORIJA")
         return
     # Iterate through all stories
 
     try:
         for i in range(len(stories[0]['items'])):
             uploaded_at = timezone.make_aware(datetime.fromtimestamp(stories[0]['items'][i]['taken_at_timestamp']))
-            if uploaded_at <= friend.lastStory:
-                #continue
-                print("LJOLJ")
+            if uploaded_at < friend.lastStory:
+                continue
 
             if stories[0]['items'][i]['is_video']:
                 continue
@@ -124,9 +120,8 @@ def fetch_posts(follower: Friend, posts: dict):
         last_post = posts[0]['node']
         uploaded_at = timezone.make_aware(datetime.fromtimestamp(last_post['taken_at_timestamp']))
 
-        if uploaded_at <= follower.lastPost:
-            print("LJOLJ")
-#            return
+        if uploaded_at < follower.lastPost:
+            return
 
         follower.lastPost = uploaded_at
         fetch_url = last_post['display_url']
