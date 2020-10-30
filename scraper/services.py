@@ -56,6 +56,7 @@ def login_get_cookies(user_ig: UserInstagram) -> dict:
     return cookies
 
 def fetch_data(username: str, *args, **kwargs):
+    print("DOSAO U FETCH")
     try:
         friend = Friend.objects.get(username=username)
     except:
@@ -95,8 +96,9 @@ def fetch_stories(friend: Friend, stories: dict):
     try:
         for i in range(len(stories[0]['items'])):
             uploaded_at = timezone.make_aware(datetime.fromtimestamp(stories[0]['items'][i]['taken_at_timestamp']))
-            if uploaded_at < friend.lastStory:
-                continue
+            if uploaded_at <= friend.lastStory:
+                print('a')
+                #continue
 
             if stories[0]['items'][i]['is_video']:
                 continue
@@ -120,8 +122,9 @@ def fetch_posts(follower: Friend, posts: dict):
         last_post = posts[0]['node']
         uploaded_at = timezone.make_aware(datetime.fromtimestamp(last_post['taken_at_timestamp']))
 
-        if uploaded_at < follower.lastPost:
-            return
+        if uploaded_at <= follower.lastPost:
+            print('')
+            #return
 
         follower.lastPost = uploaded_at
         fetch_url = last_post['display_url']
