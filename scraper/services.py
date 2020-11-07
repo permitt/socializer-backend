@@ -11,7 +11,7 @@ from insta_manager.services import send_email
 
 def initialize_scraper():
     options = webdriver.ChromeOptions()
-    options.add_argument('--headless')
+    #options.add_argument('--headless')
     options.add_argument('--disable-gpu')
     options.add_argument('--lang=en_US')
     options.add_argument(
@@ -80,9 +80,11 @@ def fetch_data(username: str, *args, **kwargs):
     posts = res.json()['graphql']['user']['edge_owner_to_timeline_media']['edges']
     fetch_posts(friend, posts)
 
+    print("E SAD CU PUC")
     numOfPostsNew = len(Post.objects.filter(owner=friend))
     user = args[0]
     emailNotif = args[1]
+    print("ZIVAA LOLOL")
     if numOfPostsNew > numOfPosts and emailNotif:
         send_email(user, friend.username)
 
@@ -91,8 +93,8 @@ def fetch_stories(friend: Friend, stories: dict):
     # Check whether there are new stories
     if len(stories) == 0:
         return
-    # Iterate through all stories
 
+    # Iterate through all stories
     try:
         for i in range(len(stories[0]['items'])):
             uploaded_at = timezone.make_aware(datetime.fromtimestamp(stories[0]['items'][i]['taken_at_timestamp']))
@@ -108,10 +110,13 @@ def fetch_stories(friend: Friend, stories: dict):
                 fetch_url = stories[0]['items'][i]['display_url']
                 extension = "_story.jpg"
             new_post = Post(owner=friend, uploadedAt=uploaded_at, type=Post.PostType.STORY, url=fetch_url)
+            print("EO NE ZNAM DJE SAM")
             friend.lastStory = uploaded_at
             folder_name = "stories/" + friend.username + "/"
             new_post.save(extension=extension, folder_name=folder_name)
+
             friend.save()
+            print("DOSAO KRAJ")
 
     except Exception as err:
         print("[FETCH_STORIES] : ", err)
