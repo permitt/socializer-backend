@@ -71,8 +71,19 @@ class FriendViewSet(viewsets.ModelViewSet):
         serializer.is_valid()
         serializer.save()
 
-        schedule('scraper.services.fetch_data', serializer.instance.username, request.user.username, emailNotification, schedule_type=Schedule.DAILY)
+        schedule('scraper.services.fetch_data', serializer.instance.username, request.user.username, emailNotification, schedule_type=Schedule.DAILY, name=serializer.instance.username)
         return Response(request.data, status=status.HTTP_201_CREATED)
+
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def perform_destroy(self, instance):
+        print(Schedule.objects.get(name=instance))
+        Schedule.objects.get(name=instance.username).delete()
+        instance.delete()
 
 
 class PostViewSet(viewsets.ModelViewSet):

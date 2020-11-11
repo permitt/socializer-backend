@@ -35,7 +35,23 @@ class Friend(models.Model):
         return self.username
 
 
-
+# def follower_post_save(sender : Friend, instance, created, *args, **kwargs):
+#     """
+#     Function that will schedule fetching data about Follower every hour
+#     :param sender: Follower class
+#     :param instance: Follower instance being saved
+#     :param created: Boolean, true if creating new instance
+#     :return:
+#     """
+#     if created:
+#         schedule('services.fetch_data',
+#                  instance,
+#                  hook='hooks.print_result',
+#                  schedule_type='H',
+#                  )
+#
+#
+# signals.post_save.connect(receiver=follower_post_save, sender=Friend)
 
 
 class Post(models.Model):
