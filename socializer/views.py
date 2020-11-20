@@ -6,6 +6,8 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
         token['instagram'] = user.instagram.username if hasattr(user, 'instagram') else None
+        token['email'] = user.username
+        token['instagram_picture'] = user.instagram.picture
         return token
 
 class MyTokenObtainPairView(TokenObtainPairView):

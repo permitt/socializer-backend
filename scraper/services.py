@@ -11,7 +11,7 @@ from insta_manager.services import send_email
 
 def initialize_scraper():
     options = webdriver.ChromeOptions()
-    #options.add_argument('--headless')
+    options.add_argument('--headless')
     options.add_argument('--disable-gpu')
     options.add_argument('--lang=en_US')
     options.add_argument(

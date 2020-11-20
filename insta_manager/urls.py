@@ -9,4 +9,5 @@ router.register(r'^post', views.PostViewSet)
 
 urlpatterns = [
             path('post/user/<str:username>', views.getUserPosts),
+            path('user/password/', views.changePassword),
             *router.urls]
