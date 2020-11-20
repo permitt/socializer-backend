@@ -12,7 +12,7 @@ class UserInstagram(models.Model):
     user = models.OneToOneField(User, related_name='instagram', on_delete=models.CASCADE)
     username = models.CharField(max_length=50, blank=False, primary_key=True)
     password = models.CharField(max_length=50)
-    picture = models.CharField(max_length=120, blank=True)
+    picture = models.CharField(max_length=300, blank=True)
     cookies = models.TextField()
     lastActive = models.DateTimeField(auto_now=True)
 

@@ -119,12 +119,12 @@ def getUserPosts(request, *args, **kwargs):
 
 @api_view(['PUT'])
 def changePassword(request, *args, **kwargs):
-    print(' MOEEE KWARGS BREJ ', kwargs)
+
     user = request.user
-    newPW = kwargs['password']
+    newPW = request.data['password']
     if len(newPW) < 6:
         return Response({'detail': 'Password must be atleast 6 characters long.'}, status=status.HTTP_400_BAD_REQUEST, content_type='application/json')
 
-    user.password = newPW
+    user.set_password(newPW)
     user.save()
     return Response({'detail':'changed pw', 'msg':'Password changed'}, status=status.HTTP_200_OK)
