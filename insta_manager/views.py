@@ -11,18 +11,17 @@ from scraper.services import check_login, valid_friend, fetch_data
 from .serializers import UserInstagramSerializer, FriendSerializer, PostSerializer
 
 
-
-# Create your views here.
 class UserInstagramViewSet(viewsets.ModelViewSet):
     queryset = UserInstagram.objects.all()
     serializer_class = UserInstagramSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    #lookup_value_regex = r"[\w.]+"
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         username, password = request.data.values()
         # Provjeri postoji li vec vezan za ulogovan user, vrati gresku ako ima
-        found = UserInstagram.objects.filter(username=username).first()
+        found = UserInstagram.objects.get(username=username)
         if found:
             return Response({'detail': 'That account has already been added!'}, status=status.HTTP_400_BAD_REQUEST)
         # Provjeri mozes li se ulogovat, ako ne vrati gresku odgovarajucu
@@ -32,6 +31,14 @@ class UserInstagramViewSet(viewsets.ModelViewSet):
         serializer.is_valid()
         serializer.save(user=request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def perform_destroy(self, instance):
+        instance.delete()
 
 class FriendViewSet(viewsets.ModelViewSet):
     queryset = Friend.objects.all()
