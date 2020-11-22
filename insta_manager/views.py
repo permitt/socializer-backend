@@ -21,16 +21,17 @@ class UserInstagramViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         username, password = request.data.values()
         # Provjeri postoji li vec vezan za ulogovan user, vrati gresku ako ima
-        found = UserInstagram.objects.get(username=username)
+        found = UserInstagram.objects.filter(username=username).first()
         if found:
             return Response({'detail': 'That account has already been added!'}, status=status.HTTP_400_BAD_REQUEST)
         # Provjeri mozes li se ulogovat, ako ne vrati gresku odgovarajucu
 
-        if not check_login(username, password):
+        success, picture = check_login(username, password)
+        if not success:
             return Response({'detail': 'Can\'t login with this username and password'}, status=status.HTTP_400_BAD_REQUEST)
         serializer.is_valid()
-        serializer.save(user=request.user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer.save(user=request.user, picture=picture)
+        return Response({'picture': picture}, status=status.HTTP_200_OK)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
