@@ -8,6 +8,7 @@ from rest_framework.response import Response
 
 from insta_manager.models import UserInstagram, Friend, Post
 from scraper.services import check_login, valid_friend, fetch_data
+from socializer.views import MyTokenObtainPairView
 from .serializers import UserInstagramSerializer, FriendSerializer, PostSerializer
 
 
@@ -15,7 +16,7 @@ class UserInstagramViewSet(viewsets.ModelViewSet):
     queryset = UserInstagram.objects.all()
     serializer_class = UserInstagramSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    #lookup_value_regex = r"[\w.]+"
+    lookup_value_regex = '[\w.@+-]+'
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -31,7 +32,7 @@ class UserInstagramViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Can\'t login with this username and password'}, status=status.HTTP_400_BAD_REQUEST)
         serializer.is_valid()
         serializer.save(user=request.user, picture=picture)
-        return Response({'picture': picture}, status=status.HTTP_200_OK)
+        return Response({'picture': picture, 'username': username}, status=status.HTTP_200_OK)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
