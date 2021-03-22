@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import requests
 from django.conf import settings
@@ -58,7 +59,7 @@ class Friend(models.Model):
 class Post(models.Model):
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=['owner','uploadedAt'], name='unique post')]
+        constraints = [models.UniqueConstraint(fields=['owner','url'], name='unique post')]
 
     class PostType(models.TextChoices):
         STORY = 'STORY', ('Story')
@@ -69,6 +70,8 @@ class Post(models.Model):
     url = models.URLField()
     image = models.ImageField(upload_to='images')
     type = models.CharField(max_length=10, choices=PostType.choices, default=PostType.POST)
+    num_likes = models.IntegerField(default=0)
+    caption = models.TextField()
 
     # Redefined to store image post locally from URL
     # Needs fixing ImageField, to be updated
@@ -76,8 +79,8 @@ class Post(models.Model):
         extension = kwargs['extension']
         folder_name = kwargs['folder_name']
         img_data = requests.get(self.url).content
-        Path('.' + settings.STATIC_URL + folder_name).mkdir(parents=True, exist_ok=True)
-        img_name = '.' + settings.STATIC_URL + folder_name + str(self.uploadedAt).replace(':','-') + extension
+        Path(os.path.join(settings.BASE_DIR, 'static', folder_name)).mkdir(parents=True, exist_ok=True)
+        img_name = os.path.join(settings.BASE_DIR, 'static', folder_name, str(self.uploadedAt).replace(':','-') + extension)
         with open(img_name, "wb") as f:
             f.write(img_data)
 
@@ -85,6 +88,8 @@ class Post(models.Model):
         del kwargs['folder_name']
         super(Post, self).save(*args, **kwargs)
         print("SACUVAN POST ", img_name)
+        return img_name
+
 
     def __str__(self):
         return f'{self.owner} : {self.uploadedAt} | {self.type}'

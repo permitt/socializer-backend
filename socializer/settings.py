@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     # custom apps
     'insta_manager.apps.InstaManagerConfig',
     'scraper.apps.ScraperConfig',
+    'captionner',
 
     # 3rd party
     'rest_framework',
@@ -140,7 +141,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
 
 STATIC_URL = '/static/'
-CHROME_PATH = './chromedriver'
 
 CORS_ORIGIN_WHITELIST = ['http://localhost:3000', 'http://127.0.0.1:3000']
 

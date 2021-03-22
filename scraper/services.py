@@ -1,22 +1,26 @@
+import os
 from datetime import datetime
 import requests
 from django.utils import timezone
 from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
 from django.conf import settings
 from time import sleep
 import json
+
+from captionner.apps import CaptionnerConfig
 from insta_manager.models import UserInstagram, Friend, Post
 from insta_manager.services import send_email
 
 
 def initialize_scraper():
     options = webdriver.ChromeOptions()
-    options.add_argument('--headless')
+    #options.add_argument('--headless')
     options.add_argument('--disable-gpu')
     options.add_argument('--lang=en_US')
     options.add_argument(
         '--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 10_3 like Mac OS X) AppleWebKit/602.1.50 (KHTML, like Gecko) CriOS/56.0.2924.75 Mobile/14E5239e Safari/602.1')
-    driver = webdriver.Chrome(executable_path=settings.CHROME_PATH, options=options)
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
     return driver
 
 def check_login(username: str, password: str) -> bool:
@@ -38,12 +42,17 @@ def check_login(username: str, password: str) -> bool:
     # Scraping the profile picture
     if rtn:
         session = requests.session()
+        cookies = driver.get_cookies()
+
+        for cookie in cookies:
+            c = {cookie['name']: cookie['value']}
+            session.cookies.update(c)
+
         res = session.get(get_posts_url(username))
-        #print(res.json()['graphql']['user'])
         picture = res.json()['graphql']['user']['profile_pic_url']
 
     driver.close()
-    return rtn, picture
+    return rtn, picture, json.dumps(cookies)
 
 def login_get_cookies(user_ig: UserInstagram) -> dict:
     driver = initialize_scraper()
@@ -58,6 +67,7 @@ def login_get_cookies(user_ig: UserInstagram) -> dict:
     driver.find_element_by_tag_name('form').submit()
     sleep(10)
     cookies = driver.get_cookies()
+    driver.close()
 
     user_ig.lastActive = datetime.now()
     user_ig.cookies = json.dumps(cookies)
@@ -65,7 +75,6 @@ def login_get_cookies(user_ig: UserInstagram) -> dict:
     return cookies
 
 def fetch_data(username: str, *args, **kwargs):
-    print("DOSAO U FETCH")
     try:
         friend = Friend.objects.get(username=username)
     except:
@@ -89,11 +98,9 @@ def fetch_data(username: str, *args, **kwargs):
     posts = res.json()['graphql']['user']['edge_owner_to_timeline_media']['edges']
     fetch_posts(friend, posts)
 
-    print("E SAD CU PUC")
     numOfPostsNew = len(Post.objects.filter(owner=friend))
     user = args[0]
     emailNotif = args[1]
-    print("ZIVAA LOLOL")
     if numOfPostsNew > numOfPosts and emailNotif:
         send_email(user, friend.username)
 
@@ -119,13 +126,18 @@ def fetch_stories(friend: Friend, stories: dict):
                 fetch_url = stories[0]['items'][i]['display_url']
                 extension = "_story.jpg"
             new_post = Post(owner=friend, uploadedAt=uploaded_at, type=Post.PostType.STORY, url=fetch_url)
-            print("EO NE ZNAM DJE SAM")
             friend.lastStory = uploaded_at
             folder_name = "stories/" + friend.username + "/"
             new_post.save(extension=extension, folder_name=folder_name)
 
+            img_name = os.path.join(settings.BASE_DIR, "static", folder_name,
+                                    str(uploaded_at).replace(':', '-') + extension)
+            print("SALJEM IMG OVAJ", img_name)
+            new_post.caption = CaptionnerConfig.loaded_model.caption(img_name)
+
+            new_post.save()
+
             friend.save()
-            print("DOSAO KRAJ")
 
     except Exception as err:
         print("[FETCH_STORIES] : ", err)
@@ -134,6 +146,7 @@ def fetch_stories(friend: Friend, stories: dict):
 def fetch_posts(follower: Friend, posts: dict):
     try:
         last_post = posts[0]['node']
+        print(last_post)
         uploaded_at = timezone.make_aware(datetime.fromtimestamp(last_post['taken_at_timestamp']))
 
         if uploaded_at <= follower.lastPost:
@@ -142,9 +155,15 @@ def fetch_posts(follower: Friend, posts: dict):
 
         follower.lastPost = uploaded_at
         fetch_url = last_post['display_url']
+        likes = last_post['edge_liked_by']['count']
         extension = ".jpg"
-        folder_name = "posts/" + follower.username + "/"
-        new_post = Post(owner=follower, uploadedAt=uploaded_at, type=Post.PostType.POST, url=fetch_url)
+        folder_name = "posts" + os.sep + follower.username + os.sep
+        new_post = Post(owner=follower, uploadedAt=uploaded_at, type=Post.PostType.POST, url=fetch_url, num_likes=likes)
+        new_post.save(extension=extension, folder_name=folder_name)
+
+        img_name = os.path.join(settings.BASE_DIR, "static" , folder_name, str(uploaded_at).replace(':', '-') + extension)
+        new_post.caption = CaptionnerConfig.loaded_model.caption(img_name)
+
         new_post.save(extension=extension, folder_name=folder_name)
         follower.save()
     except Exception as err:
@@ -184,7 +203,7 @@ def valid_friend(main_user: UserInstagram, friend_user: str) -> bool:
     return (False, [])
 
 def get_posts_url(username):
-    return f'https://www.instagram.com/{username}?__a=1'
+    return f'https://www.instagram.com/{username}/?__a=1'
 
 
 def get_story_url(ID):

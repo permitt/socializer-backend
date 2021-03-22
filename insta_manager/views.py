@@ -27,11 +27,12 @@ class UserInstagramViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'That account has already been added!'}, status=status.HTTP_400_BAD_REQUEST)
         # Provjeri mozes li se ulogovat, ako ne vrati gresku odgovarajucu
 
-        success, picture = check_login(username, password)
+        success, picture, cookies = check_login(username, password)
         if not success:
             return Response({'detail': 'Can\'t login with this username and password'}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer.is_valid()
-        serializer.save(user=request.user, picture=picture)
+        serializer.save(user=request.user, picture=picture, cookies=cookies)
         return Response({'picture': picture, 'username': username}, status=status.HTTP_200_OK)
 
     def destroy(self, request, *args, **kwargs):
@@ -65,7 +66,6 @@ class FriendViewSet(viewsets.ModelViewSet):
 
         if Friend.objects.filter(username=username, followedBy=request.user.instagram).first():
             return Response({'detail': 'You are already stalking this dude'}, status=status.HTTP_400_BAD_REQUEST)
-
         # Drugo odradi provjeru postoji li taj username i da li ga prati korisnik
         valid, data = valid_friend(request.user.instagram, username)
         if not valid:
@@ -80,6 +80,7 @@ class FriendViewSet(viewsets.ModelViewSet):
         serializer.is_valid()
         serializer.save()
 
+        #fetch_data(serializer.instance.username, request.user.username, False)
         schedule('scraper.services.fetch_data', serializer.instance.username, request.user.username, emailNotification, schedule_type=Schedule.DAILY, name=serializer.instance.username)
         return Response(request.data, status=status.HTTP_201_CREATED)
 
