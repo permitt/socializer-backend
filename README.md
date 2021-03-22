@@ -1,4 +1,4 @@
-# socializer-backend
+# The Socializer - Backend
 
 # Demo Video
 
