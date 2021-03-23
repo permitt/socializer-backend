@@ -13,11 +13,12 @@ Every story/post is processed through a deep learning image captioning model to 
 
 # Technology Stack
 
+## Backend
 * Django & Django Rest Framework used for making an API <br>
 * DjangoQ & Redis were used for asynchronous tasks as well as task scheduling. The scraper runs daily to check for new posts/stories. <br>
 * Database is SQLite for development purposes. <br>
 * Pytorch for the Image Captioning Model. **Note:** the model is pretty bad, as it is not implemented with attention and was trained for only 7-8 epochs on Google Collab. The smallest dataset (Flickr8) was used for this task. Future improvements are coming. <br>
 
 ## Frontend
-React & Material UI used to make it responsive.
+* React & Material UI used to make it responsive.
 
