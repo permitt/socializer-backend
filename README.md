@@ -2,7 +2,7 @@
 
 # Demo Video
 
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/0JVTitsQ9MA/0.jpg)](https://www.youtube.com/watch?v=0JVTitsQ9MA)
+[![Video demo](]()
 
 # About
 Web Application built in <b>Django & React</b>. <br>
